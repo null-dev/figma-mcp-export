@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(dev-sandbox-nu.sh *)",
+      "Bash(jj new -m *)",
+      "WebFetch(domain:spec.modelcontextprotocol.io)",
+      "Bash(cargo build)",
+      "Bash(cargo fmt)",
+      "Bash(cargo check)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "github"
+  ]
+}
