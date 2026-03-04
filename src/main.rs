@@ -5,9 +5,7 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::env;
 use std::fs;
-use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::sync::Arc;
 use std::thread;
@@ -100,11 +98,6 @@ fn random_b64url(n: usize) -> String {
     let mut buf = vec![0u8; n];
     rand::thread_rng().fill_bytes(&mut buf);
     b64url(&buf)
-}
-
-fn temp_file_path(prefix: &str, ext: &str) -> PathBuf {
-    let nonce = rand::thread_rng().next_u64();
-    env::temp_dir().join(format!("{prefix}-{}-{nonce:016x}.{ext}", now_ms()))
 }
 
 async fn do_browser_auth(
@@ -377,8 +370,6 @@ fn extract_image(resp: &Value) -> Result<Vec<u8>> {
 }
 
 struct ExportOutput {
-    html_path: PathBuf,
-    screenshot_path: PathBuf,
     html: String,
     screenshot_png: Vec<u8>,
 }
@@ -420,12 +411,8 @@ async fn export_from_figma_url(figma_url: String, log: LogFn) -> Result<ExportOu
     .context("get_design_context failed")?;
 
     let html = extract_text(&dc)?;
-    let html_path = temp_file_path("design-ctx", "html");
-    fs::write(&html_path, &html)
-        .with_context(|| format!("Failed to write {}", html_path.display()))?;
     log(format!(
-        "Design context saved: {} ({} bytes)",
-        html_path.display(),
+        "Design context retrieved ({} bytes)",
         html.len()
     ));
 
@@ -444,18 +431,12 @@ async fn export_from_figma_url(figma_url: String, log: LogFn) -> Result<ExportOu
     .context("get_screenshot failed")?;
 
     let png = extract_image(&ss)?;
-    let screenshot_path = temp_file_path("design-scr", "png");
-    fs::write(&screenshot_path, &png)
-        .with_context(|| format!("Failed to write {}", screenshot_path.display()))?;
     log(format!(
-        "Screenshot saved: {} ({} bytes)",
-        screenshot_path.display(),
+        "Screenshot retrieved ({} bytes)",
         png.len()
     ));
 
     Ok(ExportOutput {
-        html_path,
-        screenshot_path,
         html,
         screenshot_png: png,
     })
@@ -491,9 +472,7 @@ struct FigmaExportApp {
     figma_url: String,
     log_output: String,
     html_output: String,
-    html_path: Option<PathBuf>,
     screenshot_png: Vec<u8>,
-    screenshot_path: Option<PathBuf>,
     screenshot_texture: Option<egui::TextureHandle>,
     is_running: bool,
     worker_rx: Option<Receiver<WorkerMessage>>,
@@ -506,9 +485,7 @@ impl Default for FigmaExportApp {
             figma_url: String::new(),
             log_output: String::new(),
             html_output: String::new(),
-            html_path: None,
             screenshot_png: Vec::new(),
-            screenshot_path: None,
             screenshot_texture: None,
             is_running: false,
             worker_rx: None,
@@ -525,9 +502,7 @@ impl FigmaExportApp {
 
     fn clear_export_outputs(&mut self) {
         self.html_output.clear();
-        self.html_path = None;
         self.screenshot_png.clear();
-        self.screenshot_path = None;
         self.screenshot_texture = None;
     }
 
@@ -606,17 +581,10 @@ impl FigmaExportApp {
             self.is_running = false;
             self.worker_rx = None;
             match result {
-                Ok(paths) => {
+                Ok(data) => {
                     self.append_log("Export completed.");
-                    self.append_log(format!("HTML file: {}", paths.html_path.display()));
-                    self.append_log(format!(
-                        "Screenshot file: {}",
-                        paths.screenshot_path.display()
-                    ));
-                    self.html_path = Some(paths.html_path);
-                    self.screenshot_path = Some(paths.screenshot_path);
-                    self.html_output = paths.html;
-                    self.screenshot_png = paths.screenshot_png;
+                    self.html_output = data.html;
+                    self.screenshot_png = data.screenshot_png;
                     if let Err(err) = self.load_screenshot_texture(ctx) {
                         self.append_log(format!("Could not display screenshot: {err:#}"));
                     }
@@ -666,7 +634,7 @@ impl eframe::App for FigmaExportApp {
             const PREVIEW_HEIGHT: f32 = 260.0;
 
             ui.heading("Figma MCP Export");
-            ui.label("Enter a Figma URL and export HTML + screenshot to temporary files.");
+            ui.label("Enter a Figma URL and export HTML + screenshot into memory.");
             ui.add_space(8.0);
 
             ui.label("Figma URL");
