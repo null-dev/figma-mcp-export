@@ -8,7 +8,7 @@ Convert a Figma design into code by using the Figma MCP server. This program cur
 
 1. Obtain a Figma remote MCP server client ID and client secret.
    
-   Hint: You can add the Figma remote MCP server to Claude code and grab the credentials the `figma-remote-mcp` section in `~/.claude/.credentials.json`.
+   Hint: You can add the Figma remote MCP server to Claude code and grab the credentials from the `figma-remote-mcp` section in `~/.claude/.credentials.json`.
 2. Create a `figma-client-creds.json` file in the app working directory with the credentials:
    ```
    {
