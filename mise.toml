@@ -1,0 +1,9 @@
+[tasks.build]
+run = "cargo build"
+
+[tasks.run]
+run = "cargo run"
+
+# For: https://github.com/null-dev/launch-director
+[tasks._launch_director_run]
+run = "./target/debug/figma-mcp-export"
